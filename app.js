@@ -107,38 +107,38 @@ let tutorialStepIndex = 0;
 
 const tutorialSteps = [
   {
-    title: "1. Připravte seznam položek",
-    text: "Začněte položkami veřejné vybavenosti, které chcete porovnat.",
+    title: "1. Připravte seznam",
+    text: "V seznamu už jsou ukázkové položky. Můžete je upravit, doplnit vlastní nebo nahrát svůj sešit.",
     bullets: [
-      "Tlačítkem + Přidat vložíte vlastní položku; dvojklikem na existující položku upravíte její údaje.",
-      "Pokud už máte data v Excelu, přetáhněte sešit do pole Vložit Excel sešit.",
-      "Zaškrtnuté položky se účastní řazení; nezaškrtnuté zůstanou v seznamu."
+      "Tlačítkem + Přidat vytvoříte položku. Údaje existující položky otevřete dvojklikem nebo tlačítkem úprav vedle ní.",
+      "Soubor Excel nahrajete přetažením do pole Vložit Excel sešit nebo kliknutím na toto pole.",
+      "Do výsledného pořadí vstupují jen zaškrtnuté položky. Ostatní v seznamu zůstanou."
     ]
   },
   {
-    title: "2. Zjistěte preference respondentů",
-    text: "Pořadí preference respondentů by mělo vycházet z dotazníkového šetření. Zapište pořadí každé položky do jejího formuláře; nižší číslo znamená vyšší preferenci.",
+    title: "2. Doplňte údaje položek",
+    text: "V editoru položky upravte údaje, které chcete při rozhodování zohlednit. Nemusíte vyplňovat kritéria, která nepoužijete.",
     bullets: [
-      "Položku upravíte dvojklikem nebo tlačítkem úprav vedle ní.",
-      "Vyplňte cenu, naléhavost, pořadí z průzkumu a očekávané podíly financování."
+      "Pořadí preference respondentů zapište podle dotazníku; nižší číslo znamená vyšší preferenci.",
+      "Naléhavost se zadává od 0 (nejvyšší) do 5 (nejnižší).",
+      "U financování vyplňte předpokládané podíly jednotlivých zdrojů v procentech."
     ]
   },
   {
-    title: "3. Zapněte důležitosti a nastavte váhy",
-    text: "Ve středním sloupci zapněte vypínačem kritéria, která chcete zahrnout. Jejich posuvníkem nastavte důležitost od 1 do 10; vypnuté kritérium se do výpočtu nezapočítá.",
+    title: "3. Nastavte, na čem záleží",
+    text: "Ve středním sloupci zapněte kritéria, která mají ovlivnit výsledek. Posuvníkem nastavte jejich důležitost od 1 do 10; vypnutá kritéria se nezapočítají.",
     bullets: [
-      "Například pro řazení podle finanční náročnosti zapněte „Finanční náročnost celková RTS“ a nastavte váhu 5.",
-      "Pro zohlednění preferencí respondentů zapněte také „Preference respondentů“.",
-      "U financování developerů vyplňte v položkách jejich podíl v procentech a zapněte váhu „Podíl financování — Developeři“. Hodnota 5 znamená, že nemáte preferenci ohledně výše tohoto podílu.",
-      "Tlačítkem „Vlastní slider“ přidáte kritérium, zvolíte směr hodnocení a jeho hodnoty zadáte při úpravě každé položky."
+      "Například zapněte „Finanční náročnost celková RTS“ nebo „Preference respondentů“ a zvolte, jak velkou váhu jim dát.",
+      "U kritéria podílu financování znamená váha 5 neutrální nastavení bez preference výše daného podílu.",
+      "Vlastní kritérium přidáte tlačítkem Vlastní slider. Zvolíte směr hodnocení a hodnoty doplníte v editoru položek."
     ]
   },
   {
-    title: "4. Zkontrolujte pořadí a exportujte",
-    text: "Seznam vpravo se průběžně přepočítává. Nižší index znamená vyšší prioritu podle právě zapnutých vah.",
+    title: "4. Projděte výsledek a exportujte",
+    text: "Pořadí v pravém sloupci se průběžně aktualizuje podle vybraných položek, jejich údajů a zapnutých vah. Nižší index znamená vyšší prioritu.",
     bullets: [
-      "Zkuste upravit váhu nebo údaje položky a sledujte, jak se pořadí změní.",
-      "Až budete spokojeni, klikněte nahoře vpravo na Exportovat Excel. Stáhne se tabulka s upravenými údaji a pořadím."
+      "Změňte některou váhu nebo údaj položky a sledujte, jak se pořadí přepočítá.",
+      "Tlačítkem Exportovat Excel stáhnete sešit s upravenými údaji a výsledným pořadím."
     ]
   }
 ];
@@ -1459,6 +1459,7 @@ document.querySelector("#tutorial-button").addEventListener("click", () => {
   tutorialDialog.showModal();
 });
 document.querySelector("#close-tutorial").addEventListener("click", () => tutorialDialog.close());
+document.querySelector("#tutorial-skip").addEventListener("click", () => tutorialDialog.close());
 document.querySelector("#tutorial-previous").addEventListener("click", () => {
   if (tutorialStepIndex > 0) {
     tutorialStepIndex -= 1;

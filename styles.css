@@ -176,6 +176,7 @@ kbd { padding: 3px 5px; border: 1px solid var(--line); border-radius: 4px; color
 .tutorial-step-content ul { display: grid; gap: 10px; margin: 14px 0 0; padding-left: 18px; color: #aaa; font-size: 11px; line-height: 1.5; }
 .tutorial-step-content li::marker { color: var(--accent); }
 .tutorial-actions { justify-content: space-between; margin-top: 17px; }
+.tutorial-navigation { display: flex; gap: 8px; }
 .tutorial-actions button:disabled { opacity: .42; cursor: not-allowed; transform: none; }
 
 @media (max-width: 1120px) {

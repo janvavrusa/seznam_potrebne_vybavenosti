@@ -126,7 +126,7 @@
     </form>
   </dialog>
 
-  <dialog id="tutorial-dialog" class="tutorial-dialog">
+  <dialog id="tutorial-dialog" class="tutorial-dialog" aria-labelledby="tutorial-title">
     <div class="tutorial-content">
       <div class="dialog-heading">
         <div>
@@ -139,8 +139,11 @@
       <p id="tutorial-step-count" class="tutorial-step-count"></p>
       <div id="tutorial-step-content" class="tutorial-step-content"></div>
       <div class="dialog-actions tutorial-actions">
-        <button id="tutorial-previous" class="button button-light" type="button">Zpět</button>
-        <button id="tutorial-next" class="button button-dark" type="button">Další krok</button>
+        <button id="tutorial-skip" class="button button-light" type="button">Přeskočit návod</button>
+        <div class="tutorial-navigation">
+          <button id="tutorial-previous" class="button button-light" type="button">Zpět</button>
+          <button id="tutorial-next" class="button button-dark" type="button">Další krok</button>
+        </div>
       </div>
     </div>
   </dialog>
