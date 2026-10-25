@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080808">
+  <title>Pořadí projektů</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="xlsx.full.min.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Pořadí projektů – domů">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>Pořadí projektů</span>
+      </a>
+      <div class="top-actions">
+        <span id="project-name" class="project-name">Ukázkový projekt</span>
+        <button id="export-button" class="button button-dark" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
+          Exportovat Excel
+        </button>
+      </div>
+    </header>
+
+    <section class="intro">
+      <div>
+        <p class="eyebrow">ROZHODOVACÍ PŘEHLED</p>
+        <h1>Najděte správné pořadí.</h1>
+        <p class="intro-copy">Vyberte projekty, nastavte priority a výsledky se přepočítají okamžitě.</p>
+      </div>
+      <label class="dropzone" id="dropzone" for="file-input">
+        <input id="file-input" type="file" accept=".xlsx,.xls,.xlsm,.xlsb">
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg>
+        </span>
+        <span class="drop-copy"><strong>Vložit Excel projekt</strong><small>Přetáhněte soubor sem nebo klikněte</small></span>
+        <span class="drop-arrow" aria-hidden="true">↗</span>
+      </label>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+    <section class="workspace" aria-label="Řazení projektů">
+      <aside class="panel items-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">VÝBĚR</p>
+            <h2>Projekty <span id="item-count" class="count-badge">21</span></h2>
+          </div>
+          <div class="item-actions">
+            <button id="add-item" class="add-item-button" type="button"><span aria-hidden="true">+</span> Přidat</button>
+            <button id="toggle-all" class="text-button" type="button">Odebrat vše</button>
+          </div>
+        </div>
+        <label class="search-box">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4 4"/></svg>
+          <input id="search-input" type="search" placeholder="Hledat projekt…" autocomplete="off">
+          <kbd>Ctrl K</kbd>
+        </label>
+        <p class="helper-text">Zaškrtněte projekty k zařazení. Dvojklikem upravíte jejich údaje.</p>
+        <div id="item-list" class="item-list" aria-label="Seznam projektů"></div>
+        <div class="panel-footer"><span class="status-dot"></span><span id="selected-count">21 zařazeno</span></div>
+      </aside>
+
+      <section class="panel settings-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">NASTAVENÍ MODELU</p>
+            <h2>Váhy parametrů</h2>
+          </div>
+          <span class="scale-label">Vypnuto / 1–10</span>
+        </div>
+        <p class="helper-text settings-intro">Každý parametr můžete vypnout. Zapnuté váhy se nastavují v rozsahu 1–10.</p>
+        <div id="weight-list" class="weight-list"></div>
+        <div class="formula-note">
+          <span class="formula-mark" aria-hidden="true">∑</span>
+          <p><strong>Jak se počítá pořadí</strong><span>Výsledek se řadí od nejnižšího indexu. Hodnota 5 u podílu financování znamená, že není preference.</span></p>
+        </div>
+      </section>
+
+      <section class="panel ranking-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">VÝSLEDEK VÝPOČTU</p>
+            <h2>Navržené pořadí</h2>
+          </div>
+          <span id="rank-count" class="rank-total">21 položek</span>
+        </div>
+        <p class="helper-text ranking-intro">Pořadí se automaticky aktualizuje při každé změně.</p>
+        <ol id="ranking-list" class="ranking-list"></ol>
+        <div id="empty-ranking" class="empty-state" hidden>
+          <span aria-hidden="true">—</span>
+          <strong>Zatím žádné projekty</strong>
+          <p>Vyberte alespoň jednu položku v seznamu vlevo.</p>
+        </div>
+        <div class="ranking-footer">
+          <span>Nejvyšší priorita</span>
+          <span class="footer-line"></span>
+          <span>Nižší priorita</span>
+        </div>
+      </section>
+    </section>
+    <footer class="page-footer"><span>Pořadí projektů</span><span>Data zůstávají ve vašem zařízení.</span></footer>
+  </main>
+
+  <dialog id="edit-dialog" class="edit-dialog">
+    <form id="edit-form" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <p id="dialog-eyebrow" class="eyebrow">ÚPRAVA PROJEKTU</p>
+          <h2 id="dialog-title">Údaje projektu</h2>
+        </div>
+        <button id="close-dialog" class="icon-button" type="button" aria-label="Zavřít">×</button>
+      </div>
+      <div id="edit-fields" class="edit-fields"></div>
+      <div class="dialog-actions">
+        <button id="cancel-edit" class="button button-light" type="button">Zrušit</button>
+        <button id="save-item" class="button button-dark" type="submit">Uložit změny</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
