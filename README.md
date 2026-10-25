@@ -1,0 +1,1 @@
+# seznam_pot-ebn-_vybavenosti
