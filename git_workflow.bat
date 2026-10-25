@@ -12,7 +12,7 @@ git diff --cached --quiet
 if %errorlevel%==0 goto :empty_commit
 
 echo [3/5] Vytvareni commitu se zmenami...
-git commit -m "Update portfolio" || goto :error
+git commit -m "Update App Seznam Potrebne Vybavenosti" || goto :error
 goto :push
 
 :empty_commit

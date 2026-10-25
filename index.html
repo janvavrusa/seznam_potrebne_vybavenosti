@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080808">
-  <title>Pořadí projektů</title>
+  <title>Buduj město!</title>
   <link rel="stylesheet" href="styles.css">
   <script src="xlsx.full.min.js"></script>
   <script src="app.js" defer></script>
@@ -12,12 +12,13 @@
 <body>
   <main class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#" aria-label="Pořadí projektů – domů">
+      <a class="brand" href="#" aria-label="Buduj město!">
         <span class="brand-mark" aria-hidden="true">P</span>
-        <span>Pořadí projektů</span>
+        <span>Buduj město!</span>
       </a>
       <div class="top-actions">
-        <span id="project-name" class="project-name">Ukázkový projekt</span>
+        <span id="project-name" class="project-name">Případová studie sídliště Kamechy</span>
+        <button id="tutorial-button" class="button button-light" type="button">Návod</button>
         <button id="export-button" class="button button-dark" type="button">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
           Exportovat Excel
@@ -28,27 +29,27 @@
     <section class="intro">
       <div>
         <p class="eyebrow">ROZHODOVACÍ PŘEHLED</p>
-        <h1>Najděte správné pořadí.</h1>
-        <p class="intro-copy">Vyberte projekty, nastavte priority a výsledky se přepočítají okamžitě.</p>
+        <h1>Najděte správné pořadí. Buduj město!</h1>
+        <p class="intro-copy">Vložte položky, nastavte důležitosti a prohlédněte si automaticky řazené výsledky.</p>
       </div>
       <label class="dropzone" id="dropzone" for="file-input">
         <input id="file-input" type="file" accept=".xlsx,.xls,.xlsm,.xlsb">
         <span class="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg>
         </span>
-        <span class="drop-copy"><strong>Vložit Excel projekt</strong><small>Přetáhněte soubor sem nebo klikněte</small></span>
+        <span class="drop-copy"><strong>Vložit Excel sešit</strong><small>Přetáhněte soubor sem nebo klikněte</small></span>
         <span class="drop-arrow" aria-hidden="true">↗</span>
       </label>
     </section>
 
     <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
 
-    <section class="workspace" aria-label="Řazení projektů">
+    <section class="workspace" aria-label="Řazení položek">
       <aside class="panel items-panel">
         <div class="panel-heading">
           <div>
             <p class="eyebrow">VÝBĚR</p>
-            <h2>Projekty <span id="item-count" class="count-badge">21</span></h2>
+            <h2>Položky <span id="item-count" class="count-badge">21</span></h2>
           </div>
           <div class="item-actions">
             <button id="add-item" class="add-item-button" type="button"><span aria-hidden="true">+</span> Přidat</button>
@@ -57,12 +58,11 @@
         </div>
         <label class="search-box">
           <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4 4"/></svg>
-          <input id="search-input" type="search" placeholder="Hledat projekt…" autocomplete="off">
+          <input id="search-input" type="search" placeholder="Hledat položku…" autocomplete="off">
           <kbd>Ctrl K</kbd>
         </label>
-        <p class="helper-text">Zaškrtněte projekty k zařazení. Dvojklikem upravíte jejich údaje.</p>
-        <div id="item-list" class="item-list" aria-label="Seznam projektů"></div>
-        <div class="panel-footer"><span class="status-dot"></span><span id="selected-count">21 zařazeno</span></div>
+        <p class="helper-text">Zaškrtněte položky k zařazení. Dvojklikem upravíte jejich údaje.</p>
+        <div id="item-list" class="item-list" aria-label="Seznam položek"></div>
       </aside>
 
       <section class="panel settings-panel">
@@ -71,13 +71,22 @@
             <p class="eyebrow">NASTAVENÍ MODELU</p>
             <h2>Váhy parametrů</h2>
           </div>
-          <span class="scale-label">Vypnuto / 1–10</span>
+          <div class="weight-actions">
+            <span class="scale-label">Vypnuto / 1–10</span>
+            <button id="add-weight" class="add-item-button" type="button"><span aria-hidden="true">+</span> Vlastní slider</button>
+          </div>
         </div>
         <p class="helper-text settings-intro">Každý parametr můžete vypnout. Zapnuté váhy se nastavují v rozsahu 1–10.</p>
         <div id="weight-list" class="weight-list"></div>
         <div class="formula-note">
           <span class="formula-mark" aria-hidden="true">∑</span>
-          <p><strong>Jak se počítá pořadí</strong><span>Výsledek se řadí od nejnižšího indexu. Hodnota 5 u podílu financování znamená, že není preference.</span></p>
+          <div class="formula-content">
+            <strong>Jak se počítá pořadí</strong>
+            <span class="formula-intro">Index = součet právě zapnutých částí:</span>
+            <div id="score-formula" aria-live="polite"></div>
+            <span class="formula-explanation">U jednotlivých podílů financování hodnota 5 znamená, že není preference. Vlastní kritéria se počítají podle zvoleného směru.</span>
+            <span class="formula-explanation">Nižší výsledný index znamená vyšší prioritu. Změny vah se promítají průběžně.</span>
+          </div>
         </div>
       </section>
 
@@ -93,25 +102,19 @@
         <ol id="ranking-list" class="ranking-list"></ol>
         <div id="empty-ranking" class="empty-state" hidden>
           <span aria-hidden="true">—</span>
-          <strong>Zatím žádné projekty</strong>
+          <strong>Zatím žádné položky</strong>
           <p>Vyberte alespoň jednu položku v seznamu vlevo.</p>
-        </div>
-        <div class="ranking-footer">
-          <span>Nejvyšší priorita</span>
-          <span class="footer-line"></span>
-          <span>Nižší priorita</span>
         </div>
       </section>
     </section>
-    <footer class="page-footer"><span>Pořadí projektů</span><span>Data zůstávají ve vašem zařízení.</span></footer>
   </main>
 
   <dialog id="edit-dialog" class="edit-dialog">
     <form id="edit-form" method="dialog">
       <div class="dialog-heading">
         <div>
-          <p id="dialog-eyebrow" class="eyebrow">ÚPRAVA PROJEKTU</p>
-          <h2 id="dialog-title">Údaje projektu</h2>
+          <p id="dialog-eyebrow" class="eyebrow">ÚPRAVA POLOŽKY</p>
+          <h2 id="dialog-title">Údaje položky</h2>
         </div>
         <button id="close-dialog" class="icon-button" type="button" aria-label="Zavřít">×</button>
       </div>
@@ -119,6 +122,72 @@
       <div class="dialog-actions">
         <button id="cancel-edit" class="button button-light" type="button">Zrušit</button>
         <button id="save-item" class="button button-dark" type="submit">Uložit změny</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="tutorial-dialog" class="tutorial-dialog">
+    <div class="tutorial-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">PRŮVODCE APLIKACÍ</p>
+          <h2 id="tutorial-title">Jak začít</h2>
+        </div>
+        <button id="close-tutorial" class="icon-button" type="button" aria-label="Zavřít návod">×</button>
+      </div>
+      <div class="tutorial-progress" aria-hidden="true"><span id="tutorial-progress-fill"></span></div>
+      <p id="tutorial-step-count" class="tutorial-step-count"></p>
+      <div id="tutorial-step-content" class="tutorial-step-content"></div>
+      <div class="dialog-actions tutorial-actions">
+        <button id="tutorial-previous" class="button button-light" type="button">Zpět</button>
+        <button id="tutorial-next" class="button button-dark" type="button">Další krok</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="custom-weight-dialog" class="edit-dialog custom-weight-dialog">
+    <form id="custom-weight-form" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">VLASTNÍ KRITÉRIUM</p>
+          <h2>Přidat vlastní slider</h2>
+        </div>
+        <button id="close-custom-weight" class="icon-button" type="button" aria-label="Zavřít">×</button>
+      </div>
+      <div class="edit-field wide">
+        <div class="edit-label-row"><label for="custom-weight-name">Název kritéria</label></div>
+        <input id="custom-weight-name" name="name" type="text" maxlength="60" required>
+      </div>
+      <div class="edit-field wide">
+        <div class="edit-label-row"><label for="custom-weight-mode">Jak se má kritérium hodnotit?</label></div>
+        <select id="custom-weight-mode" name="mode">
+          <option value="higher">Vyšší hodnota = vyšší priorita</option>
+          <option value="lower">Nižší hodnota = vyšší priorita</option>
+          <option value="target">Cílené procento (jako financování)</option>
+        </select>
+        <p class="edit-field-help">Po přidání slideru můžete hodnoty upravit v editoru jednotlivých položek nebo hromadně u všech položek.</p>
+      </div>
+      <div class="dialog-actions">
+        <button id="cancel-custom-weight" class="button button-light" type="button">Zrušit</button>
+        <button class="button button-dark" type="submit">Přidat slider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="custom-values-dialog" class="edit-dialog custom-values-dialog">
+    <form id="custom-values-form" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">HODNOTY KRITÉRIA</p>
+          <h2 id="custom-values-title">Upravit hodnoty položek</h2>
+        </div>
+        <button id="close-custom-values" class="icon-button" type="button" aria-label="Zavřít">×</button>
+      </div>
+      <p id="custom-values-help" class="edit-field-help"></p>
+      <div id="custom-values-list" class="custom-values-list"></div>
+      <div class="dialog-actions">
+        <button id="cancel-custom-values" class="button button-light" type="button">Zrušit</button>
+        <button class="button button-dark" type="submit">Uložit hodnoty</button>
       </div>
     </form>
   </dialog>
