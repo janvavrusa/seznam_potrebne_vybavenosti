@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="cs">
+<html lang="cs" data-theme="day">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,6 +18,7 @@
       </a>
       <div class="top-actions">
         <span id="project-name" class="project-name">Případová studie sídliště Kamechy</span>
+        <button id="theme-toggle" class="button button-light theme-toggle" type="button" aria-pressed="false">Noční režim</button>
         <button id="tutorial-button" class="button button-light" type="button">Návod</button>
         <button id="export-button" class="button button-dark" type="button">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
@@ -29,8 +30,43 @@
     <section class="intro">
       <div>
         <p class="eyebrow">ROZHODOVACÍ PŘEHLED</p>
-        <h1>Najděte správné pořadí. Buduj město!</h1>
+        <h1>Diktuj developerovi podmínky kontribuce</h1>
         <p class="intro-copy">Vložte položky, nastavte důležitosti a prohlédněte si automaticky řazené výsledky.</p>
+      </div>
+      <div class="contribution-controls" aria-label="Výpočet kontribucí z městských bytů">
+        <label class="contribution-field" for="apartment-sale-price">
+          <span>Prodejní cena všech bytů</span>
+          <span class="contribution-input-wrap">
+            <input id="apartment-sale-price" type="number" min="0" step="100000" value="120000000" inputmode="numeric">
+            <span>Kč</span>
+          </span>
+        </label>
+        <label class="contribution-field" for="contribution-percentage">
+          <span>Podíl na kontribuci</span>
+          <span class="contribution-input-wrap">
+            <input id="contribution-percentage" type="number" min="0" max="100" step="0.1" value="10" inputmode="decimal">
+            <span>%</span>
+          </span>
+        </label>
+        <div class="contribution-total">
+          <span>Celkem kontribuce</span>
+          <output id="contribution-total" for="apartment-sale-price contribution-percentage">12 000 000 Kč</output>
+        </div>
+        <label class="contribution-field" for="housing-at-cost-share">
+          <span>Podíl bytů prodaných za pořizovací cenu</span>
+          <span class="contribution-input-wrap">
+            <input id="housing-at-cost-share" type="number" min="0" max="100" step="0.1" value="20" inputmode="decimal">
+            <span>%</span>
+          </span>
+        </label>
+        <label class="contribution-field" for="housing-foregone-margin">
+          <span>Teoretická ušlá marže developera</span>
+          <span class="contribution-input-wrap">
+            <input id="housing-foregone-margin" type="number" min="0" max="100" step="0.1" value="5" inputmode="decimal">
+            <span>%</span>
+          </span>
+        </label>
+        <p class="contribution-assumptions">Modelový náklad městských bytů = celková prodejní cena × podíl bytů prodaných za pořizovací cenu × ušlá marže. Jde o odhad nevyužitého výnosu developera, nikoli o cenu výstavby bytů.</p>
       </div>
       <label class="dropzone" id="dropzone" for="file-input">
         <input id="file-input" type="file" accept=".xlsx,.xls,.xlsm,.xlsb">
@@ -96,9 +132,48 @@
             <p class="eyebrow">VÝSLEDEK VÝPOČTU</p>
             <h2>Navržené pořadí</h2>
           </div>
-          <span id="rank-count" class="rank-total">21 položek</span>
+          <div class="ranking-view-options">
+            <label class="stakeholder-filter" for="stakeholder-filter">
+              <span>Zvýraznit subjekt</span>
+              <select id="stakeholder-filter">
+                <option value="city">Město</option>
+                <option value="developers">Developer</option>
+                <option value="state">Stát</option>
+                <option value="eu">EU</option>
+                <option value="region">Kraj</option>
+                <option value="private">Soukromí investoři</option>
+              </select>
+            </label>
+            <label class="show-all-items-toggle" for="show-all-items">
+              <span>Zobrazit všechny položky</span>
+              <span class="weight-switch">
+                <input id="show-all-items" type="checkbox" checked>
+                <span class="switch-track" aria-hidden="true"></span>
+              </span>
+            </label>
+          </div>
         </div>
-        <p class="helper-text ranking-intro">Pořadí se automaticky aktualizuje při každé změně.</p>
+        <p class="helper-text ranking-intro">Zvýrazněné jsou položky s podílem zvoleného subjektu. Pořadí se automaticky aktualizuje při každé změně.</p>
+        <div id="funding-summary" class="funding-summary" aria-live="polite"></div>
+        <div class="funding-legend-row">
+          <div class="funding-legend" aria-label="Legenda rozdělení podílů financování">
+            <span><i class="funding-developers"></i>Developer</span>
+            <span><i class="funding-city"></i>Město</span>
+            <span><i class="funding-state"></i>Stát</span>
+            <span><i class="funding-eu"></i>EU</span>
+            <span><i class="funding-region"></i>Kraj</span>
+            <span><i class="funding-private"></i>Soukromí</span>
+            <span><i class="funding-other"></i>Nerozděleno</span>
+          </div>
+          <label class="funding-display-toggle">
+            <span>Zobrazit financování</span>
+            <span class="weight-switch">
+              <input id="funding-display-toggle" type="checkbox" checked>
+              <span class="switch-track" aria-hidden="true"></span>
+            </span>
+          </label>
+        </div>
+        <span id="rank-count" class="rank-total">21 položek</span>
         <ol id="ranking-list" class="ranking-list"></ol>
         <div id="empty-ranking" class="empty-state" hidden>
           <span aria-hidden="true">—</span>

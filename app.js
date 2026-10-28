@@ -22,14 +22,28 @@ const initialItems = [
   { id: 19, name: "Veřejná pobytová zeleň", cost: 51000000, urgency: 3, preference: 2, city: 30, developers: 40, state: 10, eu: 30, region: 0, private: 0 },
   { id: 20, name: "Základní škola", cost: 421090000, urgency: 3, preference: 4, city: 10, developers: 25, state: 30, eu: 20, region: 0, private: 0 },
   { id: 21, name: "Zázemí technických služeb", cost: 26985000, urgency: 1, preference: 10, city: 30, developers: 20, state: 0, eu: 0, region: 0, private: 0 }
-].map((item) => ({ ...item, selected: true }));
+].map((item) => ({ ...item, selected: true })).concat({
+  id: 22,
+  name: "Městské byty",
+  cost: 0,
+  urgency: 5,
+  preference: 21,
+  city: 0,
+  developers: 100,
+  state: 0,
+  eu: 0,
+  region: 0,
+  private: 0,
+  selected: true,
+  isMunicipalHousing: true
+});
 
 const weightDefinitions = [
   { key: "cost", label: "Finanční náročnost celková RTS" },
   { key: "urgency", label: "Naléhavost (legislativní a plánovací)" },
   { key: "preference", label: "Preference respondentů" },
-  { key: "city", label: "Podíl financování — Město", fundingShare: true },
   { key: "developers", label: "Podíl financování — Developeři", fundingShare: true },
+  { key: "city", label: "Podíl financování — Město", fundingShare: true },
   { key: "state", label: "Podíl financování — Stát", fundingShare: true },
   { key: "eu", label: "Podíl financování — EU", fundingShare: true },
   { key: "region", label: "Podíl financování — Kraj", fundingShare: true },
@@ -89,7 +103,7 @@ const defaultWeights = {
   state: 0, eu: 0, region: 0, private: 0, funding: 1
 };
 
-const fundingKeys = ["city", "developers", "state", "eu", "region", "private"];
+const fundingKeys = ["developers", "city", "state", "eu", "region", "private"];
 let items = initialItems;
 let weights = { ...defaultWeights };
 let lastEnabledWeights = { ...defaultWeights, urgency: 1, state: 1, eu: 1, region: 1, private: 1 };
@@ -162,6 +176,28 @@ function formatCurrency(value) {
   return `${formatNumber(value, 0)} Kč`;
 }
 
+function getItemCost(item) {
+  if (!item.isMunicipalHousing) return numberValue(item.cost);
+  const atCostShare = Math.min(100, Math.max(0, numberValue(
+    document.querySelector("#housing-at-cost-share")?.value
+  ))) / 100;
+  const foregoneMargin = Math.min(100, Math.max(0, numberValue(
+    document.querySelector("#housing-foregone-margin")?.value
+  ))) / 100;
+  return apartmentSalePrice() * atCostShare * foregoneMargin;
+}
+
+function apartmentSalePrice() {
+  return Math.max(0, numberValue(document.querySelector("#apartment-sale-price")?.value));
+}
+
+function contributionPool() {
+  const percentage = Math.min(100, Math.max(0, numberValue(
+    document.querySelector("#contribution-percentage")?.value
+  )));
+  return apartmentSalePrice() * percentage / 100;
+}
+
 function calcSubBurden(weight, percentage) {
   if (weight === 0) return 0;
   if (weight === 5) return 0;
@@ -184,7 +220,7 @@ function customCriterionCell(column, row) {
 }
 
 function calculateScore(item) {
-  const totalCost = items.reduce((total, entry) => total + numberValue(entry.cost), 0);
+  const totalCost = items.reduce((total, entry) => total + getItemCost(entry), 0);
   const count = items.length;
   const fundingBurden = fundingKeys.reduce(
     (total, key) => total + calcSubBurden(numberValue(weights[key]), numberValue(item[key])),
@@ -201,7 +237,7 @@ function calculateScore(item) {
     0
   );
   return (
-    numberValue(weights.cost) * (totalCost ? numberValue(item.cost) / totalCost : 0) +
+    numberValue(weights.cost) * (totalCost ? getItemCost(item) / totalCost : 0) +
     numberValue(weights.urgency) * (numberValue(item.urgency) / 5) +
     numberValue(weights.preference) * (numberValue(item.preference) / (count || 1)) +
     (numberValue(weights.funding) / 5) * fundingBurden +
@@ -401,7 +437,7 @@ function writeSortedTable(sheet, lastItemRow) {
   sortedItems.forEach(({ item, score }, index) => {
     const row = dataRow + index;
     setWorkbookCell(sheet, `B${row}`, item.name);
-    setWorkbookCell(sheet, `C${row}`, numberValue(item.cost));
+    setWorkbookCell(sheet, `C${row}`, getItemCost(item));
     setWorkbookCell(sheet, `D${row}`, score);
   });
   setFormulaCell(
@@ -585,12 +621,20 @@ function createWeightScale(definition) {
 
 function createWeightControls() {
   weightList.replaceChildren();
+  const fundingGroup = document.createElement("section");
+  fundingGroup.className = "funding-share-group";
+  const fundingHeading = document.createElement("h3");
+  fundingHeading.textContent = "Podíl financování";
+  const fundingDescription = document.createElement("p");
+  fundingDescription.textContent = "Nastavte, jaký podíl jednotlivých položek mají nést zapojené subjekty.";
+  fundingGroup.append(fundingHeading, fundingDescription);
   for (const definition of allWeightDefinitions()) {
     const controlLabel = definition.targetShare
       ? `${definition.label} — cílový podíl (%)`
       : definition.label;
     const wrapper = document.createElement("div");
-    wrapper.className = "weight-control";
+    wrapper.className = `weight-control${definition.fundingTotal ? " funding-total-control" : ""}`;
+    if (definition.fundingShare) wrapper.classList.add(`funding-${definition.key}`);
     const label = document.createElement("label");
     label.htmlFor = `weight-${definition.key}`;
     label.textContent = controlLabel;
@@ -672,10 +716,12 @@ function createWeightControls() {
       actions.append(editValues, remove);
       wrapper.append(actions);
     }
-    weightList.append(wrapper);
+    if (definition.fundingShare) fundingGroup.append(wrapper);
+    else weightList.append(wrapper);
     value.value = formatNumber(weights[definition.key], 1);
     slider.style.setProperty("--fill", `${((Math.max(1, weights[definition.key]) - 1) / 9) * 100}%`);
   }
+  weightList.append(fundingGroup);
   updateWeightAppearance();
   updateScoreFormula();
 }
@@ -769,12 +815,73 @@ function removeCustomCriterion(key) {
 
 function renderRanking() {
   const ranked = rankedSelectedItems();
+  let remainingContribution = contributionPool();
+  let fullyFundedCount = 0;
+  let partialCoverage = 0;
+  const stakeholder = document.querySelector("#stakeholder-filter").value;
+  const stakeholderLabels = {
+    city: "Městem",
+    developers: "Developerem",
+    state: "Státem",
+    eu: "EU",
+    region: "Krajem",
+    private: "Soukromými investory"
+  };
+  let developerItemCount = 0;
+  let developerTotalCost = 0;
+  let contributionCoveredTotal = 0;
+  let contributionCoveredItemCount = 0;
+  let fundingBoundaryInserted = false;
+  const showAllItems = document.querySelector("#show-all-items").checked;
+  const showFunding = document.querySelector("#funding-display-toggle").checked;
   rankingList.replaceChildren();
   for (const [index, entry] of ranked.entries()) {
+    const cost = getItemCost(entry.item);
+    const shares = Object.fromEntries(fundingKeys.map((key) => [
+      key,
+      Math.min(100, Math.max(0, numberValue(entry.item[key]))) / 100
+    ]));
+    const developerShare = shares.developers;
+    const developerCost = cost * developerShare;
+    const covered = Math.min(developerCost, remainingContribution);
+    const uncovered = developerCost - covered;
+    const coverage = developerCost > 0 ? covered / developerCost : 1;
+    remainingContribution = Math.max(0, remainingContribution - covered);
+    contributionCoveredTotal += covered;
+    developerTotalCost += developerCost;
+    if (developerCost > 0) developerItemCount += 1;
+    if (covered > 0) contributionCoveredItemCount += 1;
+    if (developerCost > 0) {
+      if (uncovered === 0) fullyFundedCount += 1;
+      else if (covered > 0) partialCoverage = coverage;
+    }
+
+    if (uncovered > 0 && !fundingBoundaryInserted) {
+      const boundary = document.createElement("li");
+      boundary.className = "funding-boundary";
+      const boundaryLabel = covered > 0
+        ? "Od této položky už kontribuce nepokryjí celý podíl developera"
+        : "Další podíly developera už kontribuce nepokryjí";
+      boundary.setAttribute("aria-label", boundaryLabel);
+      boundary.textContent = boundaryLabel;
+      rankingList.append(boundary);
+      fundingBoundaryInserted = true;
+    }
+
+    if (!showAllItems && shares[stakeholder] === 0) {
+      const collapsedRow = document.createElement("li");
+      collapsedRow.className = "ranking-collapsed-item";
+      collapsedRow.textContent = entry.item.name;
+      rankingList.append(collapsedRow);
+      continue;
+    }
+
     const row = document.createElement("li");
-    row.className = "ranking-row";
+    row.className = `ranking-row${developerCost > 0 ? " is-developer-funded" : " is-not-developer-funded"}${uncovered > 0 ? " is-unfunded" : coverage < 1 ? " is-partially-funded" : ""}`;
+    if (covered > 0) row.classList.add("is-contribution-covered");
+    if (numberValue(entry.item[stakeholder]) > 0) row.classList.add(`stakeholder-${stakeholder}`);
     const number = document.createElement("span");
-    number.className = "rank-number";
+    number.className = `rank-number${index === 0 ? " top-rank-number" : ""}`;
     number.textContent = String(index + 1).padStart(2, "0");
     const details = document.createElement("div");
     details.className = "rank-details";
@@ -783,8 +890,73 @@ function renderRanking() {
     name.textContent = entry.item.name;
     const description = document.createElement("p");
     description.className = "rank-detail";
-    description.textContent = formatCurrency(entry.item.cost);
-    details.append(name, description);
+    const stakeholderCost = cost * shares[stakeholder];
+    const stakeholderCostLabel = document.createElement("span");
+    stakeholderCostLabel.className = "rank-stakeholder-amount";
+    stakeholderCostLabel.textContent = `Financováno ${stakeholderLabels[stakeholder]}: ${formatCurrency(stakeholderCost)}`;
+    const totalCostLabel = document.createElement("span");
+    totalCostLabel.textContent = `Celková cena: ${formatCurrency(cost)}`;
+    description.append(stakeholderCostLabel, document.createTextNode("  "), totalCostLabel);
+    const fundingDescription = document.createElement("p");
+    fundingDescription.className = "rank-funding-detail";
+    if (developerCost === 0) {
+      fundingDescription.textContent = "Developer nemá u této položky podíl na financování";
+    } else if (uncovered === 0) {
+      fundingDescription.textContent = `Podíl developera plně pokryt z kontribucí (${formatNumber(coverage * 100, 1)} %)`;
+    } else if (covered > 0) {
+      const coveredLabel = document.createElement("span");
+      coveredLabel.className = "rank-funded-value";
+      coveredLabel.textContent = `Z kontribucí ${formatCurrency(covered)} (${formatNumber(coverage * 100, 1)} % podílu developera)`;
+      const uncoveredLabel = document.createElement("span");
+      uncoveredLabel.className = "rank-uncovered-value";
+      uncoveredLabel.textContent = `mimo ně ${formatCurrency(uncovered)}`;
+      fundingDescription.append(coveredLabel, document.createTextNode(", "), uncoveredLabel);
+    } else {
+      fundingDescription.textContent = `Z podílu developera mimo kontribuce ${formatCurrency(uncovered)}`;
+    }
+    const fundingTrack = document.createElement("span");
+    fundingTrack.className = "funding-track";
+    fundingTrack.setAttribute(
+      "aria-label",
+      `Rozdělení financování ceny ${formatCurrency(cost)}: ${fundingKeys.map((key) => `${stakeholderLabels[key]} ${formatCurrency(cost * shares[key])}`).join(", ")}`
+    );
+    if (cost > 0) {
+      fundingTrack.classList.toggle("is-funding-muted", !showFunding);
+      const sharesTotal = fundingKeys.reduce((total, key) => total + shares[key], 0);
+      const chartTotal = Math.max(1, sharesTotal);
+      for (const key of fundingKeys) {
+        const segmentAmount = cost * shares[key];
+        if (segmentAmount === 0) continue;
+        if (key === "developers") {
+          for (const [className, amount] of [
+            ["funding-progress", covered],
+            ["funding-uncovered", uncovered]
+          ]) {
+            if (amount === 0) continue;
+            const segment = document.createElement("span");
+            segment.className = `${className} funding-${key}`;
+            segment.style.width = `${amount / cost / chartTotal * 100}%`;
+            segment.title = `${stakeholderLabels[key]}: ${formatCurrency(amount)}`;
+            fundingTrack.append(segment);
+          }
+        } else {
+          const segment = document.createElement("span");
+          segment.className = `funding-stakeholder funding-${key}`;
+          segment.style.width = `${shares[key] / chartTotal * 100}%`;
+          segment.title = `${stakeholderLabels[key]}: ${formatCurrency(segmentAmount)}`;
+          fundingTrack.append(segment);
+        }
+      }
+      const unassignedShare = Math.max(0, 1 - sharesTotal);
+      if (unassignedShare > 0) {
+        const unassignedSegment = document.createElement("span");
+        unassignedSegment.className = "funding-other";
+        unassignedSegment.style.width = `${unassignedShare / chartTotal * 100}%`;
+        unassignedSegment.title = `Neurčeno: ${formatCurrency(cost * unassignedShare)}`;
+        fundingTrack.append(unassignedSegment);
+      }
+    }
+    details.append(name, description, fundingDescription, fundingTrack);
     const score = document.createElement("span");
     score.className = "rank-score";
     score.textContent = formatNumber(entry.score, 3);
@@ -794,9 +966,64 @@ function renderRanking() {
     row.append(number, details, score);
     rankingList.append(row);
   }
+  const partialText = partialCoverage
+    ? ` a ${formatNumber(partialCoverage * 100, 1)} % podílu developera u další položky`
+    : "";
+  const fundedCountLabel = fullyFundedCount === 1
+    ? "položky"
+    : "položek";
+  const totalItemCosts = ranked.reduce((total, entry) => total + getItemCost(entry.item), 0);
+  const developerShortfall = Math.max(0, developerTotalCost - contributionCoveredTotal);
+  document.querySelector("#funding-summary").textContent = ranked.length
+    ? `Kontribuce plně pokryjí podíl developera u ${fullyFundedCount} ${fundedCountLabel}${partialText}. Developer se podílí na ${developerItemCount} z ${ranked.length} položek. Z kontribucí bude financován podíl developera u ${contributionCoveredItemCount} z ${ranked.length} položek; ${formatCurrency(contributionCoveredTotal)} z ${formatCurrency(developerTotalCost)} jeho podílu při celkových nákladech ${formatCurrency(totalItemCosts)}. Nepokrytý podíl developera celkem: ${formatCurrency(developerShortfall)}.`
+    : `Vyberte položky pro výpočet pokrytí. K dispozici je ${formatCurrency(remainingContribution)}.`;
   document.querySelector("#rank-count").textContent = `${ranked.length} ${ranked.length === 1 ? "položka" : ranked.length >= 2 && ranked.length <= 4 ? "položky" : "položek"}`;
   document.querySelector("#empty-ranking").hidden = ranked.length > 0;
   rankingList.hidden = ranked.length === 0;
+  saveUserState();
+}
+
+function updateContributionControls() {
+  document.querySelector("#contribution-total").value = formatCurrency(contributionPool());
+  renderRanking();
+}
+
+function normalizeContributionInputs() {
+  const priceInput = document.querySelector("#apartment-sale-price");
+  const percentageInput = document.querySelector("#contribution-percentage");
+  const atCostShareInput = document.querySelector("#housing-at-cost-share");
+  const foregoneMarginInput = document.querySelector("#housing-foregone-margin");
+  priceInput.value = String(Math.max(0, numberValue(priceInput.value)));
+  percentageInput.value = String(Math.min(100, Math.max(0, numberValue(percentageInput.value))));
+  atCostShareInput.value = String(Math.min(100, Math.max(0, numberValue(atCostShareInput.value))));
+  foregoneMarginInput.value = String(Math.min(100, Math.max(0, numberValue(foregoneMarginInput.value))));
+  updateContributionControls();
+}
+
+function ensureMunicipalHousingItem(importedItems) {
+  const existing = importedItems.find(
+    (item) => item.name.trim().toLocaleLowerCase("cs") === "městské byty"
+  );
+  if (existing) {
+    existing.isMunicipalHousing = true;
+    return importedItems;
+  }
+  const nextId = Math.max(0, ...importedItems.map((item) => numberValue(item.id))) + 1;
+  return [...importedItems, {
+    id: nextId,
+    name: "Městské byty",
+    cost: 0,
+    urgency: 5,
+    preference: importedItems.length + 1,
+    city: 0,
+    developers: 100,
+    state: 0,
+    eu: 0,
+    region: 0,
+    private: 0,
+    selected: true,
+    isMunicipalHousing: true
+  }];
 }
 
 function openEditor(item = null) {
@@ -837,11 +1064,18 @@ function openEditor(item = null) {
     input.required = true;
     input.setAttribute("aria-describedby", `edit-help-${definition.key}`);
     const defaultValue = definition.key === "name" ? "" : 0;
-    input.value = String(item?.[definition.key] ?? defaultValue);
+    input.value = String(
+      definition.key === "cost" && item?.isMunicipalHousing
+        ? getItemCost(item)
+        : item?.[definition.key] ?? defaultValue
+    );
+    if (definition.key === "cost" && item?.isMunicipalHousing) input.readOnly = true;
     const help = document.createElement("p");
     help.className = "edit-field-help";
     help.id = `edit-help-${definition.key}`;
-    help.textContent = definition.help;
+    help.textContent = definition.key === "cost" && item?.isMunicipalHousing
+      ? `Odhad ušlého výnosu developera: celková prodejní cena bytů × ${formatNumber(numberValue(document.querySelector("#housing-at-cost-share").value), 1)} % prodaných za pořizovací cenu × ${formatNumber(numberValue(document.querySelector("#housing-foregone-margin").value), 1)} % teoretické ušlé marže. Nejde o cenu výstavby bytů.`
+      : definition.help;
     wrapper.append(labelRow, input, help);
     fields.append(wrapper);
   }
@@ -936,6 +1170,90 @@ function showNotice(message, isError = false) {
   window.clearTimeout(noticeTimer);
   if (!isError) {
     noticeTimer = window.setTimeout(() => { notice.hidden = true; }, 6000);
+  }
+}
+
+function saveUserState() {
+  const state = {
+    version: 1,
+    items,
+    weights,
+    lastEnabledWeights,
+    customCriteria,
+    apartmentSalePrice: document.querySelector("#apartment-sale-price").value,
+    contributionPercentage: document.querySelector("#contribution-percentage").value,
+    housingAtCostShare: document.querySelector("#housing-at-cost-share").value,
+    housingForegoneMargin: document.querySelector("#housing-foregone-margin").value,
+    stakeholder: document.querySelector("#stakeholder-filter").value,
+    showAllItems: document.querySelector("#show-all-items").checked,
+    showFunding: document.querySelector("#funding-display-toggle").checked
+  };
+  try {
+    localStorage.setItem("buduj-mesto-user-state", JSON.stringify(state));
+  } catch (error) {
+    showNotice(`Změny se nepodařilo uložit v tomto prohlížeči: ${error.message}`, true);
+  }
+}
+
+function restoreUserState() {
+  let savedState;
+  try {
+    const stored = localStorage.getItem("buduj-mesto-user-state");
+    if (!stored) return;
+    savedState = JSON.parse(stored);
+  } catch (error) {
+    showNotice(`Uložená data se nepodařilo načíst: ${error.message}`, true);
+    return;
+  }
+  if (
+    savedState?.version !== 1 ||
+    !Array.isArray(savedState.items) ||
+    !savedState.items.every((item) => item && typeof item.name === "string") ||
+    !Array.isArray(savedState.customCriteria) ||
+    !savedState.weights ||
+    typeof savedState.weights !== "object"
+  ) {
+    showNotice("Uložená data mají neplatný formát. Pokračuji s výchozími hodnotami.", true);
+    return;
+  }
+
+  items = savedState.items.map((savedItem) => {
+    const defaultItem = initialItems.find(
+      (item) => item.id === savedItem.id && item.name === savedItem.name
+    );
+    return { ...defaultItem, ...savedItem };
+  });
+  customCriteria = savedState.customCriteria;
+  weights = { ...defaultWeights, ...savedState.weights };
+  lastEnabledWeights = {
+    ...defaultWeights,
+    urgency: 1,
+    state: 1,
+    eu: 1,
+    region: 1,
+    private: 1,
+    ...savedState.lastEnabledWeights
+  };
+  for (const [inputId, value] of [
+    ["apartment-sale-price", savedState.apartmentSalePrice],
+    ["contribution-percentage", savedState.contributionPercentage],
+    ["housing-at-cost-share", savedState.housingAtCostShare],
+    ["housing-foregone-margin", savedState.housingForegoneMargin]
+  ]) {
+    if (value !== undefined && Number.isFinite(Number(value))) {
+      document.querySelector(`#${inputId}`).value = String(value);
+    }
+  }
+  const stakeholderOptions = [...document.querySelector("#stakeholder-filter").options]
+    .map((option) => option.value);
+  if (stakeholderOptions.includes(savedState.stakeholder)) {
+    document.querySelector("#stakeholder-filter").value = savedState.stakeholder;
+  }
+  if (typeof savedState.showAllItems === "boolean") {
+    document.querySelector("#show-all-items").checked = savedState.showAllItems;
+  }
+  if (typeof savedState.showFunding === "boolean") {
+    document.querySelector("#funding-display-toggle").checked = savedState.showFunding;
   }
 }
 
@@ -1081,7 +1399,7 @@ async function importFile(file) {
   if (!file) return;
   try {
     const imported = await readWorkbook(file);
-    items = imported.items;
+    items = ensureMunicipalHousingItem(imported.items);
     weights = imported.weights;
     customCriteria = imported.criteria;
     sourceColumns = imported.columns;
@@ -1158,7 +1476,7 @@ function writeItemColumns(sheet, item, row) {
   const values = {
     id: numberValue(item.id),
     name: item.name,
-    cost: numberValue(item.cost),
+    cost: getItemCost(item),
     urgency: numberValue(item.urgency),
     preference: numberValue(item.preference),
     city: numberValue(item.city),
@@ -1378,6 +1696,31 @@ function exportWorkbook() {
 
 fileInput.addEventListener("change", () => importFile(fileInput.files?.[0]));
 document.querySelector("#search-input").addEventListener("input", renderItems);
+document.querySelector("#apartment-sale-price").addEventListener("input", updateContributionControls);
+document.querySelector("#apartment-sale-price").addEventListener("change", normalizeContributionInputs);
+document.querySelector("#contribution-percentage").addEventListener("input", updateContributionControls);
+document.querySelector("#contribution-percentage").addEventListener("change", normalizeContributionInputs);
+document.querySelector("#housing-at-cost-share").addEventListener("input", updateContributionControls);
+document.querySelector("#housing-at-cost-share").addEventListener("change", normalizeContributionInputs);
+document.querySelector("#housing-foregone-margin").addEventListener("input", updateContributionControls);
+document.querySelector("#housing-foregone-margin").addEventListener("change", normalizeContributionInputs);
+document.querySelector("#stakeholder-filter").addEventListener("change", renderRanking);
+document.querySelector("#show-all-items").addEventListener("change", renderRanking);
+document.querySelector("#funding-display-toggle").addEventListener("change", renderRanking);
+const themeToggle = document.querySelector("#theme-toggle");
+function setTheme(theme) {
+  const isNight = theme === "night";
+  document.documentElement.dataset.theme = isNight ? "night" : "day";
+  themeToggle.textContent = isNight ? "Denní režim" : "Noční režim";
+  themeToggle.setAttribute("aria-pressed", String(isNight));
+  document.querySelector('meta[name="theme-color"]').content = isNight ? "#080808" : "#ffffff";
+  localStorage.setItem("buduj-mesto-theme", document.documentElement.dataset.theme);
+}
+themeToggle.addEventListener("click", () => {
+  setTheme(document.documentElement.dataset.theme === "night" ? "day" : "night");
+});
+const savedTheme = localStorage.getItem("buduj-mesto-theme");
+if (savedTheme === "day" || savedTheme === "night") setTheme(savedTheme);
 document.querySelector("#add-item").addEventListener("click", () => openEditor());
 const customWeightDialog = document.querySelector("#custom-weight-dialog");
 const customWeightForm = document.querySelector("#custom-weight-form");
@@ -1449,6 +1792,7 @@ customWeightForm.addEventListener("submit", (event) => {
   customWeightDialog.close();
   createWeightControls();
   renderItems();
+  document.querySelector("#contribution-total").value = formatCurrency(contributionPool());
   renderRanking();
   showNotice(`Slider „${label}“ byl přidán. Hodnotu můžete nastavit u každé položky v jejím editoru.`);
 });
@@ -1557,6 +1901,7 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+restoreUserState();
 createWeightControls();
 renderItems();
 renderRanking();
